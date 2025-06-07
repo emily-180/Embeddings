@@ -3,31 +3,54 @@ import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
 import os
+import time
+import pickle
 
+# Carrega a chave secreta do .env
 load_dotenv()
 chave_secreta = os.getenv('API_KEY')
-print(chave_secreta)
+print("Chave carregada:", chave_secreta)
+
 generativeai.configure(api_key=chave_secreta)
 
-csv_url = 'https://docs.google.com/spreadsheets/d/11QU1ibjUAlNKLwLWF1s-kSpRH2UBOiVbLyl1pJIyeSk/export?format=csv&id=11QU1ibjUAlNKLwLWF1s-kSpRH2UBOiVbLyl1pJIyeSk'
+# Lê os dados da planilha do Google Sheets
+csv_url = 'https://docs.google.com/spreadsheets/d/1Iev42buaGr5jV29O8kg52_tOoV60X31TeWpR53oRAtE/export?format=csv&id=1Iev42buaGr5jV29O8kg52_tOoV60X31TeWpR53oRAtE'
 df = pd.read_csv(csv_url)
+print("Dados carregados:")
 print(df.head())
 
+# Define o modelo de embedding
 model = 'models/gemini-embedding-exp-03-07'
-def gerarEmbeddings(title, text):
-  result = generativeai.embed_content(model=model,
-                                content=text,
-                                task_type="retrieval_document",
-                                title=title)
-  return result['embedding']
 
+# Função segura para gerar embeddings
+def gerar_embedding_seguro(titulo, conteudo):
+    try:
+        result = generativeai.embed_content(
+            model=model,
+            content=conteudo,
+            task_type="retrieval_document",
+            title=titulo
+        )
+        return result["embedding"]
+    except Exception as e:
+        print(f"[ERRO] Falha ao gerar embedding para '{titulo}': {e}")
+        return None
 
+# Gera os embeddings com controle de tempo
+embeddings = []
+for i, row in df.iterrows():
+    print(f"Gerando embedding {i+1}/{len(df)}: {row['Titulo']}")
+    emb = gerar_embedding_seguro(row["Titulo"], row["Conteúdo"])
+    embeddings.append(emb)
+    time.sleep(17)  # pausa para evitar sobrecarga da API
 
-df["Embeddings"] = df.apply(lambda row: gerarEmbeddings(row["Titulo"],row["Conteúdo"]), axis=1)
-print(df)
+df["Embeddings"] = embeddings
 
-import pickle
-pickle.dump(df, open('datasetEmbedding2025.pkl','wb'))
+# Salva os dados com embeddings em arquivo .pkl
+pickle.dump(df, open('datasetEmbedding2025.pkl', 'wb'))
+print("\nEmbeddings salvos em 'datasetEmbedding2025.pkl'")
 
-modeloEmbeddings = pickle.load(open('datasetEmbedding2025.pkl','rb'))
-print(modeloEmbeddings)
+# Testa a leitura do arquivo
+modeloEmbeddings = pickle.load(open('datasetEmbedding2025.pkl', 'rb'))
+print("\nModelo carregado do pickle:")
+print(modeloEmbeddings.head())
