@@ -64,7 +64,6 @@ def home():
     response = melhorarResposta(prompt)
     return response
 
-
 @app.route("/api", methods=["POST"])
 def results():
     # Verifique a chave de autorização
